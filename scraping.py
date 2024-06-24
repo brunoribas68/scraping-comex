@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import argparse
 import sys
 
@@ -5,20 +6,23 @@ import requests
 from bs4 import BeautifulSoup
 import numpy as np
 
+
 def find_currency(data, currency_code):
     # Find the index of the row that matches the currency code
     index = np.where(data[:, 0] == currency_code)[0]
 
     if len(index) > 0:
-        return label_currence_data(data[index[0]])
+        return label_currency_data(data[index[0]])
     else:
         return "Currency not found."
 
-def label_currence_data(data):
+
+def label_currency_data(data):
     keys = ["ISO", "numero", "casa_decimal", "moeda", "pais"]
     return dict(zip(keys, data))
 
-def getCoinData(coin):
+
+def get_coin_data(coin):
     # URL do artigo da Wikipedia que contém a tabela
     url = "https://pt.wikipedia.org/wiki/ISO_4217"
 
@@ -49,20 +53,21 @@ def getCoinData(coin):
                 table_data.append(cell_data)
             data_to_np = np.array(table_data)
 
-            print(find_currency(data_to_np, coin))
-            sys.exit()
-
+            return find_currency(data_to_np, coin)
         else:
-            print("Tabela não encontrada.")
+            return "Tabela não encontrada."
     else:
-        print("Falha ao acessar a página da Wikipedia.")
+        return "Falha ao acessar a página da Wikipedia."
 
-def main(coin = 'GBP'):
-    parser = argparse.ArgumentParser(description='Processar dados de moedas.')
 
-    coin_data = getCoinData(coin)
-    coin_data = find_currency(coin_data)
-    np.savetxt("coin_data.csv", np.asarray(coin_data), delimiter=",")
+def main(coin='GBP'):
+    argparse.ArgumentParser(description='Processar dados de moedas.')
+
+    coin_data = get_coin_data(coin)
+    if isinstance(coin_data, str):
+        print(coin_data)
+
+    print(coin_data)
 
 
 if __name__ == "__main__":
