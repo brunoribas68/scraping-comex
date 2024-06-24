@@ -55,7 +55,7 @@ def get_coin_data(coin):
                 table_data.append(cell_data)
             data_to_np = np.array(table_data)
 
-            return find_currency(data_to_np, coin)
+            return data_to_np
         else:
             return "Tabela não encontrada."
     else:
@@ -64,23 +64,29 @@ def get_coin_data(coin):
 
 def main(coin='GBP'):
     argparse.ArgumentParser(description='Processar dados de moedas.')
-
+    coin = coin.split(',')
+    coin = np.array(coin)
+    json_data = np.empty(0)
     coin_data = get_coin_data(coin)
     if isinstance(coin_data, str):
-        print(coin_data)
+        np.append(json_data, coin_data)
 
-    json_data = json.dumps(coin_data, ensure_ascii=False)
-    print(json_data)
+    for currency in coin:
+        json_data = np.append(json_data, find_currency(coin_data, currency))
+
+    return json_data
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Processar dados de moedas.')
 
     # Adicionando o argumento --coin
-    parser.add_argument('--coin', type=str, required=True, help='O código da moeda para processar')
+    parser.add_argument('--coin', type=str, required=False, help='O código da moeda para processar')
 
-    # Parseando os argumentos da linha de comando
     args = parser.parse_args()
 
+    # Parseando os argumentos da linha de comando
+    print(main(args.coin))
+    sys.exit()
+
     # Chamando a função principal com o argumento coin
-    main(args.coin)
