@@ -85,8 +85,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+
+    data = main(args.coin)
     # Parseando os argumentos da linha de comando
-    print(main(args.coin))
+    data_list = data.tolist()
+    data_json = json.dumps(data_list)
+
+    print(data_json)
     sys.exit()
 
     # Chamando a função principal com o argumento coin
