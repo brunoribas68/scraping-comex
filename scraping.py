@@ -5,6 +5,8 @@ import sys
 import requests
 from bs4 import BeautifulSoup
 import numpy as np
+import json
+
 
 
 def find_currency(data, currency_code):
@@ -67,7 +69,8 @@ def main(coin='GBP'):
     if isinstance(coin_data, str):
         print(coin_data)
 
-    print(coin_data)
+    json_data = json.dumps(coin_data, ensure_ascii=False)
+    print(json_data)
 
 
 if __name__ == "__main__":
