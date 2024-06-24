@@ -11,82 +11,135 @@ import json
 
 def find_currency(data, currency_code):
     # Find the index of the row that matches the currency code
-    index = np.where(data[:, 0] == currency_code)[0]
+    mask = [row['code'] in currency_code for row in data]
 
-    if len(index) > 0:
-        return label_currency_data(data[index[0]])
+    # Filtrando os dados usando a máscara
+    filtered_data = data[mask]
+
+    if len(filtered_data) > 0:
+        return label_currency_data(filtered_data)
+    else:
+        return "Currency not found."
+
+def find_number(data, currency_code):
+    # Find the index of the row that matches the currency code
+    mask = [row['number'] in currency_code for row in data]
+
+    # Filtrando os dados usando a máscara
+    filtered_data = data[mask]
+
+    if len(filtered_data) > 0:
+        return label_currency_data(filtered_data)
     else:
         return "Currency not found."
 
 
 def label_currency_data(data):
-    keys = ["ISO", "numero", "casa_decimal", "moeda", "pais"]
+    keys = ["code", "number", "decimal", "currency", "currency_location"]
     return dict(zip(keys, data))
 
 
-def get_coin_data(coin):
-    # URL do artigo da Wikipedia que contém a tabela
+def extract_currency_data():
+    # URL da página da Wikipédia
     url = "https://pt.wikipedia.org/wiki/ISO_4217"
 
-    # Enviar uma solicitação HTTP GET para a URL
+    # Realiza a solicitação HTTP
     response = requests.get(url)
-    # Verificar se a solicitação foi bem-sucedida (código de status 200)
-    if response.status_code == 200:
-        # Analisar o conteúdo HTML da página
-        soup = BeautifulSoup(response.content, "html.parser")
+    response.raise_for_status()  # Levanta um erro se a solicitação falhar
 
-        # Encontrar a tabela com a classe 'wikitable sortable jquery-tablesorter'
-        table = soup.find("table", {"class": "wikitable"})
-        # print(table)
-        # sys.exit()
-        if table:
-            # Inicializar uma lista para armazenar os dados da tabela
-            table_data = []
+    # Analisa o conteúdo HTML da página
+    soup = BeautifulSoup(response.content, 'html.parser')
 
-            # Iterar sobre as linhas da tabela
-            for row in table.find_all("tr"):
-                # Encontrar todas as células (td) e cabeçalhos (th) da linha
-                cells = row.find_all(["td", "th"])
+    # Encontra a tabela com as informações de moedas
+    table = soup.find('table', {'class': 'wikitable sortable'})
 
-                # Extrair o texto de cada célula e armazenar em uma lista
-                cell_data = [cell.get_text(strip=True) for cell in cells]
+    # Inicializa a lista para armazenar os dados das moedas
+    currencies = []
 
-                # Adicionar os dados da linha à lista de dados da tabela
-                table_data.append(cell_data)
-            data_to_np = np.array(table_data)
+    # Itera pelas linhas da tabela
+    for row in table.find_all('tr')[1:]:  # Pula o cabeçalho da tabela
+        cols = row.find_all('td')
+        if len(cols) > 0:
+            code = cols[0].text.strip()
+            number = cols[1].text if cols[1].text != "" else "None"
+            decimal = cols[2].text
+            currency = cols[3].text.strip()
 
-            return data_to_np
-        else:
-            return "Tabela não encontrada."
-    else:
-        return "Falha ao acessar a página da Wikipedia."
+            # Inicializa a lista de localizações para cada moeda
+            currency_locations = []
+
+            # Itera pelas colunas de países (exceto a primeira que contém o código do país)
+            for col in cols[4:]:
+                location_info = col.find('span', {'class': 'flagicon'})
+
+                if location_info:
+                    location = location_info.find_next_sibling()
+                    location = location.next_element
+                    icon = location_info.find('img')['src']
+
+                else:
+                    location = None
+                    icon = ""
+
+                currency_locations.append({
+                    "location": location,
+                    "icon": icon
+                })
+
+            # Adiciona as informações da moeda à lista
+            currencies.append({
+                "code": code,
+                "number": number,
+                "decimal": decimal,
+                "currency": currency,
+                "currency_locations": currency_locations
+            })
+
+    return np.array(currencies)
+    # Salva os dados em um arquivo JSON
+    # with open('currencies.json', 'w', encoding='utf-8') as f:
+    #     json.dump(currencies, f, ensure_ascii=False, indent=4)
+    #
+    # # Exibe os dados coletados
+    # print(json.dumps(currencies, ensure_ascii=False, indent=4))
 
 
-def main(coin='GBP'):
+
+
+def main(arg, arg_name):
+    # Extrair dados
+
     argparse.ArgumentParser(description='Processar dados de moedas.')
-    coin = coin.split(',')
-    coin = np.array(coin)
+    arg = arg.split(',')
+    arg = np.array(arg)
     json_data = np.empty(0)
-    coin_data = get_coin_data(coin)
-    if isinstance(coin_data, str):
-        np.append(json_data, coin_data)
+    coin_data = extract_currency_data()
 
-    for currency in coin:
-        json_data = np.append(json_data, find_currency(coin_data, currency))
+    for currency in arg:
+        if arg_name == 'coin':
+            json_data = np.append(json_data, find_currency(coin_data, currency))
+        else:
+            json_data = np.append(json_data, find_number(coin_data, currency))
 
     return json_data
+
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Processar dados de moedas.')
 
+
     # Adicionando o argumento --coin
     parser.add_argument('--coin', type=str, required=False, help='O código da moeda para processar')
+    parser.add_argument('--number', type=str, required=False, help='O numero da moeda para processar')
 
     args = parser.parse_args()
+    # Chamando a função principal com o argumento coin
+    if args.coin:
+        data = main(args.coin, 'coin')
+    else:
+        data = main(args.number, 'number')
 
-
-    data = main(args.coin)
     # Parseando os argumentos da linha de comando
     data_list = data.tolist()
     data_json = json.dumps(data_list)
@@ -94,4 +147,6 @@ if __name__ == "__main__":
     print(data_json)
     sys.exit()
 
-    # Chamando a função principal com o argumento coin
+
+
+
